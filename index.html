@@ -54,6 +54,7 @@
             color: white;
             position: absolute;
             display: none;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
         }
 
         .spark {
@@ -62,18 +63,34 @@
             height: 5px;
             background: white;
             border-radius: 50%;
-            animation: sparkle 1s linear;
+            animation: sparkle 1.5s linear;
+            box-shadow: 0 0 5px white;
+        }
+
+        .mist-particle {
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            animation: mist 2s linear;
         }
 
         @keyframes sparkle {
-            0% { transform: scale(0); opacity: 1; }
-            100% { transform: scale(1.5); opacity: 0; }
+            0% { transform: scale(0) rotate(0deg); opacity: 1; }
+            100% { transform: scale(2) rotate(180deg); opacity: 0; }
+        }
+
+        @keyframes mist {
+            0% { transform: translateY(0); opacity: 0.5; }
+            100% { transform: translateY(-50px); opacity: 0; }
         }
 
         #age-response {
             color: white;
             margin-top: 20px;
             display: none;
+            text-align: center;
         }
 
         .buttons {
@@ -90,6 +107,12 @@
             background: black;
             border-radius: 50%;
         }
+
+        #location-time {
+            color: white;
+            text-align: center;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -104,6 +127,7 @@
         <input type="number" id="age-field" maxlength="2">
     </div>
     <div id="age-response"></div>
+    <div id="location-time"></div>
 
     <script>
         // Device detection
@@ -164,16 +188,23 @@
                 const firstLetter = name[0].toLowerCase();
                 document.body.style.backgroundColor = `hsl(${firstLetter.charCodeAt(0) * 3}, 50%, 20%)`;
 
-                // Spark animation
-                for (let i = 0; i < 30; i++) {
+                // Enhanced spark and mist animation
+                for (let i = 0; i < 50; i++) {
                     const spark = document.createElement('div');
                     spark.className = 'spark';
-                    const x = window.innerWidth / 2 + (Math.random() - 0.5) * 200;
-                    const y = window.innerHeight / 2 + (Math.random() - 0.5) * 100;
+                    const x = window.innerWidth / 2 + (Math.random() - 0.5) * 250;
+                    const y = window.innerHeight / 2 + (Math.random() - 0.5) * 150;
                     spark.style.left = `${x}px`;
                     spark.style.top = `${y}px`;
                     document.body.appendChild(spark);
-                    setTimeout(() => spark.remove(), 1000);
+                    setTimeout(() => spark.remove(), 1500);
+
+                    const mist = document.createElement('div');
+                    mist.className = 'mist-particle';
+                    mist.style.left = `${x + (Math.random() - 0.5) * 50}px`;
+                    mist.style.top = `${y + 50}px`;
+                    document.body.appendChild(mist);
+                    setTimeout(() => mist.remove(), 2000);
                 }
 
                 setTimeout(() => {
@@ -182,7 +213,7 @@
                         document.getElementById('age-input').style.display = 'flex';
                         characterName.style.display = 'none';
                     }, 1000);
-                }, 5000);
+                }, 3000); // Reduced from 5000 to 3000 (2 seconds less)
             }
         });
 
@@ -202,7 +233,7 @@
                 } else if (age >= 26 && age <= 39) {
                     ageResponse.innerHTML = 'Are you ready to dedicate the next 12 years of your life reading nothing but Wikipedia articles?<br>' +
                         '<a href="https://wikipedia.org" target="_blank">Wikipedia</a><br>' +
-                        '<div class="buttons"><button onclick="window.close()">No</button><button onclick="showFinalName()">Yes</button></div>';
+                        '<div class="buttons"><button onclick="window.open(\'https://amazon.com\')">No</button><button onclick="showLocationTime()">Yes</button></div>';
                 } else if (age >= 40 && age <= 99) {
                     document.body.style.backgroundColor = 'white';
                     createDots();
@@ -210,41 +241,17 @@
             }
         });
 
-        function showFinalName() {
+        function showLocationTime() {
             ageResponse.style.display = 'none';
-            characterName.style.display = 'block';
-            characterName.style.opacity = '1';
-            for (let i = 0; i < 30; i++) {
-                const spark = document.createElement('div');
-                spark.className = 'spark';
-                const x = window.innerWidth / 2 + (Math.random() - 0.5) * 200;
-                const y = window.innerHeight / 2 + (Math.random() - 0.5) * 100;
-                spark.style.left = `${x}px`;
-                spark.style.top = `${y}px`;
-                document.body.appendChild(spark);
-                setTimeout(() => spark.remove(), 1000);
-            }
-            setTimeout(() => characterName.style.display = 'none', 5000);
-        }
-
-        function createDots() {
-            let count = 0;
-            const interval = setInterval(() => {
-                if (count >= 200) {
-                    clearInterval(interval);
-                    return;
-                }
-                const dot = document.createElement('div');
-                dot.className = 'dot';
-                const size = Math.random() * 20 + 5;
-                dot.style.width = `${size}px`;
-                dot.style.height = `${size}px`;
-                dot.style.left = `${Math.random() * window.innerWidth}px`;
-                dot.style.top = `${Math.random() * window.innerHeight}px`;
-                document.body.appendChild(dot);
-                count++;
-            }, 50);
-        }
-    </script>
-</body>
-</html>
+            const locationTime = document.getElementById('location-time');
+            locationTime.style.display = 'block';
+            
+            const currentTime = new Date().toLocaleTimeString();
+            let countdown = 999;
+            
+            // Simple IP-based location (using free API)
+            fetch('https://ipapi.co/json/')
+                .then(response => response.json())
+                .then(data => {
+                    const location = `${data.city}, ${data.region}, ${data.country_name}`;
+                    locationTime.innerHTML = `Time: ${currentTime}<br>Location
