@@ -27,13 +27,13 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            position: absolute;
             width: 90%;
             max-width: 600px;
             text-align: center;
+            color: white;
         }
 
-        #device-screen.active {
+        .active {
             display: flex;
         }
 
@@ -64,7 +64,6 @@
 
         #name-display {
             font-size: clamp(36px, 10vw, 72px);
-            color: white;
             text-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
         }
 
@@ -98,7 +97,6 @@
         }
 
         #response-text {
-            color: white;
             font-size: clamp(14px, 4vw, 18px);
             margin-top: 20px;
         }
@@ -117,7 +115,6 @@
         }
 
         #location-time {
-            color: white;
             font-size: clamp(14px, 4vw, 18px);
         }
 
@@ -176,78 +173,100 @@
         const ua = navigator.userAgent.toLowerCase();
         const device = /iphone|ipad|ipod/.test(ua) ? 'iPhone' :
                       /android/.test(ua) ? 'Android' : 'Computer';
+        
+        // Initialize first screen
         const deviceText = document.getElementById('device-text');
         deviceText.innerHTML = `${device}<br>${proverbs[Math.floor(Math.random() * proverbs.length)]}`;
 
         // Screen management
         function showScreen(screenId) {
-            document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
-            document.getElementById(screenId).classList.add('active');
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active');
+                screen.style.opacity = '1'; // Reset opacity
+            });
+            const nextScreen = document.getElementById(screenId);
+            nextScreen.classList.add('active');
+            // Ensure input is focused for mobile
+            const input = nextScreen.querySelector('input');
+            if (input) setTimeout(() => input.focus(), 100);
         }
 
-        // Initial sequence
-        setTimeout(() => {
-            deviceText.style.opacity = '0';
-            setTimeout(() => showScreen('name-screen'), 1000);
-        }, 3000);
+        // Start sequence
+        function startSequence() {
+            setTimeout(() => {
+                deviceText.style.opacity = '0';
+                setTimeout(() => {
+                    showScreen('name-screen');
+                }, 1000);
+            }, 3000);
+        }
 
         // Name handling
-        document.getElementById('name-input').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && e.target.value.trim() && !e.target.value.includes(' ')) {
-                showScreen('name-display');
-                const nameDisplay = document.getElementById('name-display');
-                nameDisplay.textContent = e.target.value.trim();
-                
-                // Background color
-                const firstLetter = e.target.value[0].toLowerCase();
-                document.body.style.backgroundColor = `hsl(${firstLetter.charCodeAt(0) * 3}, 50%, 20%)`;
+        const nameInput = document.getElementById('name-input');
+        nameInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const name = e.target.value.trim();
+                if (name && !name.includes(' ')) {
+                    showScreen('name-display');
+                    const nameDisplay = document.getElementById('name-display');
+                    nameDisplay.textContent = name;
+                    
+                    // Background color
+                    const firstLetter = name[0].toLowerCase();
+                    document.body.style.backgroundColor = `hsl(${firstLetter.charCodeAt(0) * 3}, 50%, 20%)`;
 
-                // Particle effects
-                for (let i = 0; i < 50; i++) {
-                    const spark = document.createElement('div');
-                    spark.className = 'spark';
-                    const mist = document.createElement('div');
-                    mist.className = 'mist';
+                    // Particle effects
                     const bounds = nameDisplay.getBoundingClientRect();
-                    const x = bounds.left + bounds.width/2 + (Math.random() - 0.5) * bounds.width;
-                    const y = bounds.top + bounds.height/2 + (Math.random() - 0.5) * bounds.height;
-                    spark.style.left = `${x}px`;
-                    spark.style.top = `${y}px`;
-                    mist.style.left = `${x + (Math.random() - 0.5) * 50}px`;
-                    mist.style.top = `${y + 50}px`;
-                    document.body.appendChild(spark);
-                    document.body.appendChild(mist);
-                    setTimeout(() => { spark.remove(); mist.remove(); }, 2000);
-                }
+                    for (let i = 0; i < 50; i++) {
+                        const spark = document.createElement('div');
+                        spark.className = 'spark';
+                        const mist = document.createElement('div');
+                        mist.className = 'mist';
+                        const x = bounds.left + bounds.width/2 + (Math.random() - 0.5) * bounds.width;
+                        const y = bounds.top + bounds.height/2 + (Math.random() - 0.5) * bounds.height;
+                        spark.style.left = `${x}px`;
+                        spark.style.top = `${y}px`;
+                        mist.style.left = `${x + (Math.random() - 0.5) * 50}px`;
+                        mist.style.top = `${y + 50}px`;
+                        document.body.appendChild(spark);
+                        document.body.appendChild(mist);
+                        setTimeout(() => { spark.remove(); mist.remove(); }, 2000);
+                    }
 
-                setTimeout(() => {
-                    nameDisplay.style.opacity = '0';
-                    setTimeout(() => showScreen('age-screen'), 1000);
-                }, 3000);
+                    setTimeout(() => {
+                        nameDisplay.style.opacity = '0';
+                        setTimeout(() => {
+                            showScreen('age-screen');
+                        }, 1000);
+                    }, 3000);
+                }
             }
         });
 
         // Age handling
-        document.getElementById('age-input').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && e.target.value) {
-                showScreen('response-screen');
+        const ageInput = document.getElementById('age-input');
+        ageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
                 const age = parseInt(e.target.value);
-                const responseText = document.getElementById('response-text');
-                
-                if (age < 13) {
-                    responseText.textContent = 'Better luck next time.';
-                } else if (age <= 25) {
-                    responseText.textContent = 'You need to buy lots of junk on Amazon.';
-                } else if (age <= 39) {
-                    responseText.innerHTML = 'Are you ready to dedicate the next 12 years reading Wikipedia?<br>' +
-                        '<a href="https://wikipedia.org" target="_blank" style="color: white">Wikipedia</a><br>' +
-                        '<div class="buttons">' +
-                        '<button onclick="window.open(\'https://amazon.com\', \'_blank\')">No</button>' +
-                        '<button onclick="showLocation()">Yes</button>' +
-                        '</div>';
-                } else if (age <= 99) {
-                    document.body.style.backgroundColor = 'white';
-                    createDots();
+                if (!isNaN(age)) {
+                    showScreen('response-screen');
+                    const responseText = document.getElementById('response-text');
+                    
+                    if (age < 13) {
+                        responseText.textContent = 'Better luck next time.';
+                    } else if (age <= 25) {
+                        responseText.textContent = 'You need to buy lots of junk on Amazon.';
+                    } else if (age <= 39) {
+                        responseText.innerHTML = 'Are you ready to dedicate the next 12 years reading Wikipedia?<br>' +
+                            '<a href="https://wikipedia.org" target="_blank" style="color: white">Wikipedia</a><br>' +
+                            '<div class="buttons">' +
+                            '<button onclick="window.open(\'https://amazon.com\', \'_blank\')">No</button>' +
+                            '<button onclick="showLocation()">Yes</button>' +
+                            '</div>';
+                    } else if (age <= 99) {
+                        document.body.style.backgroundColor = 'white';
+                        createDots();
+                    }
                 }
             }
         });
@@ -298,6 +317,9 @@
                 count++;
             }, 50);
         }
+
+        // Start the sequence when page loads
+        window.onload = startSequence;
     </script>
 </body>
 </html>
