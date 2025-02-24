@@ -3,127 +3,248 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pastel Grid URL App</title>
+    <title>Device Mystery</title>
     <style>
         body {
             margin: 0;
             padding: 0;
             height: 100vh;
-            overflow: hidden;
             display: flex;
-            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            background-color: black;
+            overflow: hidden;
         }
 
-        .rectangle {
-            flex: 1 0 calc(33.33% - 2px);
-            height: calc(33.33% - 2px);
-            position: relative;
-            margin: 1px;
-            cursor: pointer;
+        #device-text {
+            color: gray;
+            font-family: serif;
+            font-size: 16px;
+            text-align: center;
+            opacity: 1;
+            transition: opacity 1s ease;
         }
 
-        .circle {
-            width: 100px;
-            height: 100px;
+        #mist {
+            opacity: 0;
+        }
+
+        .input-container {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .prompt {
+            color: #00ff00;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        input {
+            background: none;
+            border: 1px solid gray;
+            color: white;
+            padding: 5px;
+            text-align: center;
+        }
+
+        #character-name {
+            font-size: 72px;
+            color: white;
+            position: absolute;
+            display: none;
+        }
+
+        .spark {
+            position: absolute;
+            width: 5px;
+            height: 5px;
+            background: white;
+            border-radius: 50%;
+            animation: sparkle 1s linear;
+        }
+
+        @keyframes sparkle {
+            0% { transform: scale(0); opacity: 1; }
+            100% { transform: scale(1.5); opacity: 0; }
+        }
+
+        #age-response {
+            color: white;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .buttons {
+            margin-top: 10px;
+        }
+
+        button {
+            margin: 0 5px;
+            padding: 5px 10px;
+        }
+
+        .dot {
+            position: absolute;
             background: black;
             border-radius: 50%;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 2;
-            transition: all 0.3s ease;
         }
-
-        .diamond {
-            width: 100px;
-            height: 100px;
-            background: black;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) rotate(45deg);
-            z-index: 2;
-            transition: all 0.3s ease;
-        }
-
-        /* Pastel color animations with 20s duration */
-        #rect1 { animation: colorFade1 20s infinite; }
-        #rect2 { animation: colorFade2 20s infinite; }
-        #rect3 { animation: colorFade3 20s infinite; }
-        #rect4 { animation: colorFade4 20s infinite; }
-        #rect5 { animation: colorFade5 20s infinite; }
-        #rect6 { animation: colorFade6 20s infinite; }
-        #rect7 { animation: colorFade7 20s infinite; }
-        #rect8 { animation: colorFade8 20s infinite; }
-        #rect9 { animation: colorFade9 20s infinite; }
-
-        /* Happy pastel color palette */
-        @keyframes colorFade1 { 0%, 100% { background: #ffb6c1; } 50% { background: #e6e6fa; } } /* Light Pink to Lavender */
-        @keyframes colorFade2 { 0%, 100% { background: #98fb98; } 50% { background: #afeeee; } } /* Pale Green to Pale Turquoise */
-        @keyframes colorFade3 { 0%, 100% { background: #add8e6; } 50% { background: #fffacd; } } /* Light Blue to Lemon Chiffon */
-        @keyframes colorFade4 { 0%, 100% { background: #f0e68c; } 50% { background: #e0ffff; } } /* Khaki to Light Cyan */
-        @keyframes colorFade5 { 0%, 100% { background: #dda0dd; } 50% { background: #b0e0e6; } } /* Plum to Powder Blue */
-        @keyframes colorFade6 { 0%, 100% { background: #ffdead; } 50% { background: #d8bfd8; } } /* Navajo White to Thistle */
-        @keyframes colorFade7 { 0%, 100% { background: #e6e6fa; } 50% { background: #ffb6c1; } } /* Lavender to Light Pink */
-        @keyframes colorFade8 { 0%, 100% { background: #afeeee; } 50% { background: #98fb98; } } /* Pale Turquoise to Pale Green */
-        @keyframes colorFade9 { 0%, 100% { background: #fffacd; } 50% { background: #add8e6; } } /* Lemon Chiffon to Light Blue */
     </style>
 </head>
 <body>
-    <div class="rectangle" id="rect1"><div class="circle"></div></div>
-    <div class="rectangle" id="rect2"><div class="circle"></div></div>
-    <div class="rectangle" id="rect3"><div class="circle"></div></div>
-    <div class="rectangle" id="rect4"><div class="circle"></div></div>
-    <div class="rectangle" id="rect5"><div class="circle"></div></div>
-    <div class="rectangle" id="rect6"><div class="circle"></div></div>
-    <div class="rectangle" id="rect7"><div class="circle"></div></div>
-    <div class="rectangle" id="rect8"><div class="circle"></div></div>
-    <div class="rectangle" id="rect9"><div class="circle"></div></div>
+    <div id="device-text"></div>
+    <div class="input-container" id="name-input">
+        <div class="prompt" id="name-prompt">NAME YOUR CHARACTER</div>
+        <input type="text" id="name-field" maxlength="20">
+    </div>
+    <div id="character-name"></div>
+    <div class="input-container" id="age-input">
+        <div class="prompt" id="age-prompt">HOW OLD ARE YOU?</div>
+        <input type="number" id="age-field" maxlength="2">
+    </div>
+    <div id="age-response"></div>
 
     <script>
-        const rectangles = document.querySelectorAll('.rectangle');
-        const circles = document.querySelectorAll('.circle');
-        
-        // Store URLs in an object
-        let urlLinks = {};
+        // Device detection
+        const ua = navigator.userAgent.toLowerCase();
+        let device = 'unknown';
+        if (/iphone|ipad|ipod/.test(ua)) device = 'iPhone';
+        else if (/android/.test(ua)) device = 'Android';
+        else if (/mac|win|linux|chromebook/.test(ua)) device = 'Computer';
 
-        // Load saved URLs from localStorage if available
-        if (localStorage.getItem('urlLinks')) {
-            urlLinks = JSON.parse(localStorage.getItem('urlLinks'));
-            // Update existing links to diamond shape
-            Object.keys(urlLinks).forEach(rectId => {
-                const index = parseInt(rectId.replace('rect', '')) - 1;
-                circles[index].classList.remove('circle');
-                circles[index].classList.add('diamond');
-            });
+        // Proverbs array
+        const proverbs = [
+            "Beware what lurks in shadows ahead",
+            "Take heed of coming darkness",
+            "Caution guides the path forward",
+            "Watch for what tomorrow hides",
+            "Fear the unseen that approaches",
+            "Beware the storm yet to break",
+            "Mind the dangers drawing near",
+            "Heed the whispers of fate",
+            "Look out for hidden perils",
+            "Beware what fate conceals",
+            "Watch for coming trials",
+            "Take care with steps ahead",
+            "Fear what waits in silence",
+            "Beware the unknown future",
+            "Caution rules the wise",
+            "Mind what lies in wait",
+            "Heed the winds of change",
+            "Watch for unseen threats",
+            "Beware time's secret plans",
+            "Look to the shadows coming"
+        ];
+
+        // Initial display
+        const deviceText = document.getElementById('device-text');
+        const randomProverb = proverbs[Math.floor(Math.random() * proverbs.length)];
+        deviceText.innerHTML = `${device}<br>${randomProverb}`;
+
+        // Fade out after 3 seconds
+        setTimeout(() => {
+            deviceText.style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('name-input').style.display = 'flex';
+            }, 1000);
+        }, 3000);
+
+        // Name input handling
+        const nameField = document.getElementById('name-field');
+        const characterName = document.getElementById('character-name');
+        nameField.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && nameField.value.trim().split(' ').length === 1) {
+                document.getElementById('name-input').style.display = 'none';
+                const name = nameField.value.trim();
+                characterName.textContent = name;
+                characterName.style.display = 'block';
+
+                // Background color based on first letter
+                const firstLetter = name[0].toLowerCase();
+                document.body.style.backgroundColor = `hsl(${firstLetter.charCodeAt(0) * 3}, 50%, 20%)`;
+
+                // Spark animation
+                for (let i = 0; i < 30; i++) {
+                    const spark = document.createElement('div');
+                    spark.className = 'spark';
+                    const x = window.innerWidth / 2 + (Math.random() - 0.5) * 200;
+                    const y = window.innerHeight / 2 + (Math.random() - 0.5) * 100;
+                    spark.style.left = `${x}px`;
+                    spark.style.top = `${y}px`;
+                    document.body.appendChild(spark);
+                    setTimeout(() => spark.remove(), 1000);
+                }
+
+                setTimeout(() => {
+                    characterName.style.opacity = '0';
+                    setTimeout(() => {
+                        document.getElementById('age-input').style.display = 'flex';
+                        characterName.style.display = 'none';
+                    }, 1000);
+                }, 5000);
+            }
+        });
+
+        // Age input handling
+        const ageField = document.getElementById('age-field');
+        const ageResponse = document.getElementById('age-response');
+        ageField.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('age-input').style.display = 'none';
+                const age = parseInt(ageField.value);
+                ageResponse.style.display = 'block';
+
+                if (age < 13) {
+                    ageResponse.textContent = 'Better luck next time.';
+                } else if (age >= 13 && age <= 25) {
+                    ageResponse.textContent = 'You need to buy lots of junk on Amazon.';
+                } else if (age >= 26 && age <= 39) {
+                    ageResponse.innerHTML = 'Are you ready to dedicate the next 12 years of your life reading nothing but Wikipedia articles?<br>' +
+                        '<a href="https://wikipedia.org" target="_blank">Wikipedia</a><br>' +
+                        '<div class="buttons"><button onclick="window.close()">No</button><button onclick="showFinalName()">Yes</button></div>';
+                } else if (age >= 40 && age <= 99) {
+                    document.body.style.backgroundColor = 'white';
+                    createDots();
+                }
+            }
+        });
+
+        function showFinalName() {
+            ageResponse.style.display = 'none';
+            characterName.style.display = 'block';
+            characterName.style.opacity = '1';
+            for (let i = 0; i < 30; i++) {
+                const spark = document.createElement('div');
+                spark.className = 'spark';
+                const x = window.innerWidth / 2 + (Math.random() - 0.5) * 200;
+                const y = window.innerHeight / 2 + (Math.random() - 0.5) * 100;
+                spark.style.left = `${x}px`;
+                spark.style.top = `${y}px`;
+                document.body.appendChild(spark);
+                setTimeout(() => spark.remove(), 1000);
+            }
+            setTimeout(() => characterName.style.display = 'none', 5000);
         }
 
-        circles.forEach((circle, index) => {
-            circle.addEventListener('click', (e) => {
-                e.stopPropagation(); // Prevent rectangle click from triggering
-                const url = prompt('Enter a URL for this rectangle:');
-                if (url) {
-                    // Add http:// if no protocol is specified
-                    const formattedUrl = url.match(/^https?:\/\//) ? url : 'http://' + url;
-                    urlLinks[`rect${index + 1}`] = formattedUrl;
-                    // Save to localStorage
-                    localStorage.setItem('urlLinks', JSON.stringify(urlLinks));
-                    // Change to diamond shape
-                    circle.classList.remove('circle');
-                    circle.classList.add('diamond');
+        function createDots() {
+            let count = 0;
+            const interval = setInterval(() => {
+                if (count >= 200) {
+                    clearInterval(interval);
+                    return;
                 }
-            });
-        });
-
-        rectangles.forEach((rect, index) => {
-            rect.addEventListener('click', () => {
-                const rectId = `rect${index + 1}`;
-                if (urlLinks[rectId]) {
-                    window.open(urlLinks[rectId], '_blank');
-                }
-            });
-        });
+                const dot = document.createElement('div');
+                dot.className = 'dot';
+                const size = Math.random() * 20 + 5;
+                dot.style.width = `${size}px`;
+                dot.style.height = `${size}px`;
+                dot.style.left = `${Math.random() * window.innerWidth}px`;
+                dot.style.top = `${Math.random() * window.innerHeight}px`;
+                document.body.appendChild(dot);
+                count++;
+            }, 50);
+        }
     </script>
 </body>
 </html>
