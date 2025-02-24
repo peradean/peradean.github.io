@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Color Grid URL App</title>
+    <title>Pastel Grid URL App</title>
     <style>
         body {
             margin: 0;
@@ -32,28 +32,42 @@
             left: 50%;
             transform: translate(-50%, -50%);
             z-index: 2;
+            transition: all 0.3s ease;
         }
 
-        /* Color animations for each rectangle */
-        #rect1 { animation: colorFade1 10s infinite; }
-        #rect2 { animation: colorFade2 10s infinite; }
-        #rect3 { animation: colorFade3 10s infinite; }
-        #rect4 { animation: colorFade4 10s infinite; }
-        #rect5 { animation: colorFade5 10s infinite; }
-        #rect6 { animation: colorFade6 10s infinite; }
-        #rect7 { animation: colorFade7 10s infinite; }
-        #rect8 { animation: colorFade8 10s infinite; }
-        #rect9 { animation: colorFade9 10s infinite; }
+        .diamond {
+            width: 100px;
+            height: 100px;
+            background: black;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(45deg);
+            z-index: 2;
+            transition: all 0.3s ease;
+        }
 
-        @keyframes colorFade1 { 0%, 100% { background: #ff0000; } 50% { background: #00ffff; } }
-        @keyframes colorFade2 { 0%, 100% { background: #00ff00; } 50% { background: #ff00ff; } }
-        @keyframes colorFade3 { 0%, 100% { background: #0000ff; } 50% { background: #ffff00; } }
-        @keyframes colorFade4 { 0%, 100% { background: #ffff00; } 50% { background: #0000ff; } }
-        @keyframes colorFade5 { 0%, 100% { background: #ff00ff; } 50% { background: #00ff00; } }
-        @keyframes colorFade6 { 0%, 100% { background: #00ffff; } 50% { background: #ff0000; } }
-        @keyframes colorFade7 { 0%, 100% { background: #ff8000; } 50% { background: #007fff; } }
-        @keyframes colorFade8 { 0%, 100% { background: #8000ff; } 50% { background: #ff0080; } }
-        @keyframes colorFade9 { 0%, 100% { background: #00ff80; } 50% { background: #ff8000; } }
+        /* Pastel color animations with 20s duration */
+        #rect1 { animation: colorFade1 20s infinite; }
+        #rect2 { animation: colorFade2 20s infinite; }
+        #rect3 { animation: colorFade3 20s infinite; }
+        #rect4 { animation: colorFade4 20s infinite; }
+        #rect5 { animation: colorFade5 20s infinite; }
+        #rect6 { animation: colorFade6 20s infinite; }
+        #rect7 { animation: colorFade7 20s infinite; }
+        #rect8 { animation: colorFade8 20s infinite; }
+        #rect9 { animation: colorFade9 20s infinite; }
+
+        /* Happy pastel color palette */
+        @keyframes colorFade1 { 0%, 100% { background: #ffb6c1; } 50% { background: #e6e6fa; } } /* Light Pink to Lavender */
+        @keyframes colorFade2 { 0%, 100% { background: #98fb98; } 50% { background: #afeeee; } } /* Pale Green to Pale Turquoise */
+        @keyframes colorFade3 { 0%, 100% { background: #add8e6; } 50% { background: #fffacd; } } /* Light Blue to Lemon Chiffon */
+        @keyframes colorFade4 { 0%, 100% { background: #f0e68c; } 50% { background: #e0ffff; } } /* Khaki to Light Cyan */
+        @keyframes colorFade5 { 0%, 100% { background: #dda0dd; } 50% { background: #b0e0e6; } } /* Plum to Powder Blue */
+        @keyframes colorFade6 { 0%, 100% { background: #ffdead; } 50% { background: #d8bfd8; } } /* Navajo White to Thistle */
+        @keyframes colorFade7 { 0%, 100% { background: #e6e6fa; } 50% { background: #ffb6c1; } } /* Lavender to Light Pink */
+        @keyframes colorFade8 { 0%, 100% { background: #afeeee; } 50% { background: #98fb98; } } /* Pale Turquoise to Pale Green */
+        @keyframes colorFade9 { 0%, 100% { background: #fffacd; } 50% { background: #add8e6; } } /* Lemon Chiffon to Light Blue */
     </style>
 </head>
 <body>
@@ -77,6 +91,12 @@
         // Load saved URLs from localStorage if available
         if (localStorage.getItem('urlLinks')) {
             urlLinks = JSON.parse(localStorage.getItem('urlLinks'));
+            // Update existing links to diamond shape
+            Object.keys(urlLinks).forEach(rectId => {
+                const index = parseInt(rectId.replace('rect', '')) - 1;
+                circles[index].classList.remove('circle');
+                circles[index].classList.add('diamond');
+            });
         }
 
         circles.forEach((circle, index) => {
@@ -89,6 +109,9 @@
                     urlLinks[`rect${index + 1}`] = formattedUrl;
                     // Save to localStorage
                     localStorage.setItem('urlLinks', JSON.stringify(urlLinks));
+                    // Change to diamond shape
+                    circle.classList.remove('circle');
+                    circle.classList.add('diamond');
                 }
             });
         });
