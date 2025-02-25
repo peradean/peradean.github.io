@@ -1,266 +1,56 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>Chroma Quest</title>
+    <title>3D Ball with Cat Image</title>
     <style>
-        canvas { border: 1px solid black; }
-        #textBox, #scoreBox { 
-            position: absolute; 
-            top: 50%; 
-            left: 50%; 
-            transform: translate(-50%, -50%); 
-            background: rgba(255, 255, 255, 0.9); 
-            padding: 20px; 
-            display: none; 
-            text-align: center;
-        }
+        body { margin: 0; }
+        canvas { display: block; }
     </style>
 </head>
 <body>
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
-    <div id="textBox">
-        <p id="textPrompt"></p>
-        <button id="option1"></button>
-        <button id="option2"></button>
-    </div>
-    <div id="scoreBox">
-        <p id="scoreText"></p>
-        <button id="scoreOk">OK</button>
-    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const textBox = document.getElementById('textBox');
-        const textPrompt = document.getElementById('textPrompt');
-        const option1 = document.getElementById('option1');
-        const option2 = document.getElementById('option2');
-        const scoreBox = document.getElementById('scoreBox');
-        const scoreText = document.getElementById('scoreText');
-        const scoreOk = document.getElementById('scoreOk');
+        // Scene setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
 
-        // Player properties
-        let player = { x: 50, y: 500, width: 30, height: 30, speed: 5, dy: 0, jumping: false };
-        const gravity = 0.5;
-        const jumpForce = -15;
+        // Create sphere
+        const geometry = new THREE.SphereGeometry(1, 32, 32);
+        
+        // Load texture
+        const textureLoader = new THREE.TextureLoader();
+        const texture = textureLoader.load('https://placecats.com/millie/300/150');
+        
+        // Create material with texture
+        const material = new THREE.MeshBasicMaterial({ map: texture });
+        const sphere = new THREE.Mesh(geometry, material);
+        scene.add(sphere);
 
-        // Game state
-        let level = 1;
-        let score = 0;
-        let time = 0;
-        let gameRunning = true;
-        let textInteraction = false;
+        // Position camera
+        camera.position.z = 3;
 
-        // Level objects
-        let platforms = [];
-        let blocks = [];
-        let key = { x: 0, y: 0, collected: false };
-
-        // Define levels
-        const levels = [
-            { name: "Forest", platforms: [{ x: 0, y: 550, w: 800, h: 50 }], blocks: [], key: { x: 700, y: 500 }, parTime: 120, riddle: { q: "What flies without wings?", a1: "Time", a2: "Bird", correct: "Time" } },
-            { name: "Ocean", platforms: [{ x: 0, y: 550, w: 400, h: 50 }, { x: 500, y: 450, w: 300, h: 50 }], blocks: [{ x: 550, y: 400, w: 40, h: 40 }], key: { x: 700, y: 400 }, parTime: 150 },
-            { name: "Mountain", platforms: [{ x: 0, y: 550, w: 300, h: 50 }, { x: 400, y: 450, w: 200, h: 50 }], blocks: [], key: { x: 550, y: 400 }, parTime: 180, riddle: { q: "I speak without a mouth—what am I?", a1: "Echo", a2: "Wind", correct: "Echo" } },
-            { name: "City", platforms: [{ x: 0, y: 550, w: 200, h: 50 }, { x: 300, y: 450, w: 200, h: 50 }], blocks: [{ x: 350, y: 400, w: 40, h: 40 }], key: { x: 450, y: 400 }, parTime: 210 },
-            { name: "Market", platforms: [{ x: 0, y: 550, w: 150, h: 50 }, { x: 200, y: 450, w: 150, h: 50 }], blocks: [], key: { x: 300, y: 400 }, parTime: 240 },
-            { name: "House", platforms: [{ x: 0, y: 550, w: 100, h: 50 }, { x: 150, y: 450, w: 100, h: 50 }], blocks: [{ x: 200, y: 400, w: 40, h: 40 }], key: { x: 250, y: 400 }, parTime: 270 },
-            { name: "Museum", platforms: [{ x: 0, y: 550, w: 80, h: 50 }, { x: 120, y: 450, w: 80, h: 50 }], blocks: [], key: { x: 180, y: 400 }, parTime: 300 },
-            { name: "Happy Place", platforms: [{ x: 0, y: 550, w: 60, h: 50 }, { x: 100, y: 450, w: 60, h: 50 }], blocks: [{ x: 120, y: 400, w: 40, h: 40 }], key: { x: 150, y: 400 }, parTime: 330 },
-            { name: "Scary Place", platforms: [{ x: 0, y: 550, w: 40, h: 50 }, { x: 80, y: 450, w: 40, h: 50 }], blocks: [], key: { x: 100, y: 400 }, parTime: 360 },
-            { name: "Pretty Place", platforms: [{ x: 0, y: 550, w: 20, h: 50 }, { x: 50, y: 450, w: 20, h: 50 }], blocks: [{ x: 70, y: 400, w: 40, h: 40 }], key: { x: 90, y: 400 }, parTime: 420, riddle: { q: "I shatter light—what am I?", a1: "Prism", a2: "Mirror", correct: "Prism" } }
-        ];
-
-        // Load level
-        function loadLevel(lvl) {
-            platforms = levels[lvl - 1].platforms;
-            blocks = levels[lvl - 1].blocks.map(b => ({ ...b, dx: 0 }));
-            key = { ...levels[lvl - 1].key, collected: false };
-            player.x = 50;
-            player.y = 500;
-            player.dy = 0;
-            player.jumping = false;
-            time = 0;
-            gameRunning = true;
-            textInteraction = false;
-            textBox.style.display = 'none';
-            scoreBox.style.display = 'none';
-            update(); // Ensure the loop restarts
+        // Animation function
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Rotate the sphere
+            sphere.rotation.x += 0.01;
+            sphere.rotation.y += 0.01;
+            
+            renderer.render(scene, camera);
         }
 
-        // Controls
-        let keys = {};
-        window.addEventListener('keydown', (e) => keys[e.key] = true);
-        window.addEventListener('keyup', (e) => keys[e.key] = false);
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
 
-        // Collision detection
-        function collides(a, b) {
-            return a.x < b.x + b.w && a.x + a.width > b.x && a.y < b.y + b.h && a.y + a.height > b.y;
-        }
-
-        // Game loop
-        function update() {
-            if (!gameRunning && !textInteraction && scoreBox.style.display !== 'block') return;
-
-            if (gameRunning) {
-                // Player movement
-                if (keys['ArrowLeft'] || keys['a']) player.x -= player.speed;
-                if (keys['ArrowRight'] || keys['d']) player.x += player.speed;
-                if ((keys['ArrowUp'] || keys['w']) && !player.jumping) {
-                    player.dy = jumpForce;
-                    player.jumping = true;
-                }
-
-                // Gravity and collision
-                player.dy += gravity;
-                player.y += player.dy;
-                for (let p of platforms) {
-                    if (collides(player, p) && player.dy > 0 && player.y + player.height - player.dy <= p.y) {
-                        player.y = p.y - player.height;
-                        player.dy = 0;
-                        player.jumping = false;
-                    }
-                }
-                if (player.y > canvas.height) player.y = 500;
-
-                // Block interaction
-                for (let b of blocks) {
-                    if (collides(player, b)) {
-                        if (player.x < b.x) player.x = b.x - player.width;
-                        else player.x = b.x + b.w;
-                        b.dx = player.x > b.x ? 2 : -2;
-                    }
-                    b.x += b.dx;
-                    b.dx *= 0.9; // Friction
-                    for (let p of platforms) if (collides(b, p)) b.x -= b.dx;
-                }
-
-                // Key collection
-                if (!key.collected && collides(player, { x: key.x, y: key.y, w: 20, h: 20 })) {
-                    key.collected = true;
-                    if (levels[level - 1].riddle) showRiddle(levels[level - 1].riddle);
-                    else endLevel();
-                }
-
-                // Time
-                time += 1 / 60; // Assuming 60 FPS
-            }
-
-            draw();
-            requestAnimationFrame(update);
-        }
-
-        // Draw backgrounds
-        function drawBackground() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            switch (level) {
-                case 1: // Forest
-                    ctx.fillStyle = '#228B22'; ctx.fillRect(0, 400, 800, 200);
-                    ctx.fillStyle = '#8B4513'; for (let i = 0; i < 5; i++) ctx.fillRect(100 + i * 150, 300, 20, 100);
-                    ctx.fillStyle = '#32CD32'; for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.arc(110 + i * 150, 280, 40, 0, Math.PI * 2); ctx.fill(); }
-                    break;
-                case 2: // Ocean
-                    ctx.fillStyle = '#1E90FF'; ctx.fillRect(0, 300, 800, 300);
-                    ctx.fillStyle = '#FFD700'; ctx.fillRect(0, 500, 800, 100);
-                    ctx.fillStyle = '#4682B4'; for (let i = 0; i < 10; i++) { ctx.beginPath(); ctx.arc(50 + i * 80, 350 + Math.sin(i) * 20, 20, 0, Math.PI * 2); ctx.fill(); }
-                    break;
-                case 3: // Mountain
-                    ctx.fillStyle = '#808080'; ctx.beginPath(); ctx.moveTo(0, 600); ctx.lineTo(200, 200); ctx.lineTo(400, 400); ctx.lineTo(600, 100); ctx.lineTo(800, 300); ctx.lineTo(800, 600); ctx.fill();
-                    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(580, 80, 40, 20);
-                    break;
-                case 4: // City
-                    ctx.fillStyle = '#696969'; for (let i = 0; i < 6; i++) ctx.fillRect(50 + i * 120, 600 - (i % 3 + 1) * 100, 100, (i % 3 + 1) * 100);
-                    ctx.fillStyle = '#FFFF00'; for (let i = 0; i < 6; i++) for (let j = 0; j < 3; j++) ctx.fillRect(70 + i * 120, 550 - j * 30, 10, 10);
-                    break;
-                case 5: // Market
-                    ctx.fillStyle = '#DAA520'; ctx.fillRect(0, 500, 800, 100);
-                    ctx.fillStyle = '#FF4500'; for (let i = 0; i < 4; i++) { ctx.fillRect(100 + i * 150, 450, 80, 50); ctx.fillStyle = '#228B22'; ctx.fillRect(90 + i * 150, 430, 100, 20); ctx.fillStyle = '#FF4500'; }
-                    break;
-                case 6: // House
-                    ctx.fillStyle = '#8B4513'; ctx.fillRect(300, 400, 200, 200);
-                    ctx.fillStyle = '#FF0000'; ctx.beginPath(); ctx.moveTo(280, 400); ctx.lineTo(520, 400); ctx.lineTo(400, 300); ctx.fill();
-                    ctx.fillStyle = '#FFFF00'; ctx.fillRect(350, 450, 30, 30);
-                    break;
-                case 7: // Museum
-                    ctx.fillStyle = '#D3D3D3'; ctx.fillRect(200, 350, 400, 250);
-                    ctx.fillStyle = '#FFD700'; for (let i = 0; i < 3; i++) ctx.fillRect(250 + i * 100, 300, 20, 50);
-                    ctx.fillStyle = '#000000'; ctx.fillRect(350, 500, 100, 100);
-                    break;
-                case 8: // Happy Place (Meadow)
-                    ctx.fillStyle = '#98FB98'; ctx.fillRect(0, 400, 800, 200);
-                    ctx.fillStyle = '#FFFF00'; for (let i = 0; i < 10; i++) { ctx.beginPath(); ctx.arc(50 + i * 70, 450 + (i % 2) * 20, 10, 0, Math.PI * 2); ctx.fill(); }
-                    break;
-                case 9: // Scary Place (Swamp)
-                    ctx.fillStyle = '#2F4F4F'; ctx.fillRect(0, 400, 800, 200);
-                    ctx.fillStyle = '#8B0000'; for (let i = 0; i < 4; i++) { ctx.fillRect(150 + i * 150, 350, 10, 50); ctx.beginPath(); ctx.arc(155 + i * 150, 330, 20, 0, Math.PI * 2); ctx.fill(); }
-                    break;
-                case 10: // Pretty Place (Garden)
-                    ctx.fillStyle = '#FFB6C1'; ctx.fillRect(0, 0, 800, 600);
-                    ctx.fillStyle = '#32CD32'; ctx.fillRect(0, 500, 800, 100);
-                    ctx.fillStyle = '#FF00FF'; for (let i = 0; i < 8; i++) { ctx.beginPath(); ctx.arc(80 + i * 90, 520 + (i % 2) * 20, 15, 0, Math.PI * 2); ctx.fill(); }
-                    break;
-            }
-        }
-
-        // Draw game
-        function draw() {
-            drawBackground();
-            ctx.fillStyle = '#000';
-            platforms.forEach(p => ctx.fillRect(p.x, p.y, p.w, p.h));
-            blocks.forEach(b => ctx.fillRect(b.x, b.y, b.w, b.h));
-            ctx.fillStyle = '#FFD700';
-            if (!key.collected) ctx.fillRect(key.x, key.y, 20, 20);
-            ctx.fillStyle = '#FF4500';
-            ctx.fillRect(player.x, player.y, player.width, player.height);
-            ctx.fillStyle = '#FFF';
-            ctx.font = '20px Arial';
-            ctx.fillText(`Level: ${level} - ${levels[level - 1].name} | Time: ${time.toFixed(1)}s | Score: ${score}`, 10, 30);
-        }
-
-        // Text interaction
-        function showRiddle(riddle) {
-            gameRunning = false;
-            textInteraction = true;
-            textBox.style.display = 'block';
-            textPrompt.textContent = riddle.q;
-            option1.textContent = riddle.a1;
-            option2.textContent = riddle.a2;
-            option1.onclick = () => checkAnswer(riddle, riddle.a1);
-            option2.onclick = () => checkAnswer(riddle, riddle.a2);
-        }
-
-        function checkAnswer(riddle, answer) {
-            textBox.style.display = 'none';
-            textInteraction = false;
-            if (answer === riddle.correct) {
-                endLevel();
-            } else {
-                gameRunning = true; // Resume if wrong answer
-            }
-        }
-
-        // End level
-        function endLevel() {
-            gameRunning = false;
-            let levelScore = Math.max(0, 1000 - Math.floor((time - levels[level - 1].parTime) * 10));
-            score += levelScore;
-            scoreBox.style.display = 'block';
-            scoreText.textContent = `Level ${level} Complete!\nScore: ${levelScore} | Total Score: ${score}`;
-            scoreOk.onclick = () => {
-                scoreBox.style.display = 'none';
-                level++;
-                if (level <= 10) {
-                    setTimeout(() => loadLevel(level), 100); // Slight delay for smoothness
-                } else {
-                    scoreBox.style.display = 'block';
-                    scoreText.textContent = `Game Over!\nFinal Score: ${score}`;
-                    scoreOk.onclick = () => scoreBox.style.display = 'none';
-                }
-            };
-        }
-
-        // Start game
-        loadLevel(1);
-        update();
+        animate();
     </script>
 </body>
 </html>
