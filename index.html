@@ -1,280 +1,192 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Chess Maze Adventure</title>
+    <meta charset="UTF-8">
+    <title>Chroma Quest</title>
     <style>
-        canvas {
-            border: 2px solid #333;
-            display: block;
-            margin: 20px auto;
-            box-shadow: 0 0 20px rgba(0,0,0,0.3);
-        }
-        #game-container {
-            text-align: center;
-            font-family: Arial, sans-serif;
-            background: #f0f0f0;
-            padding: 20px;
+        canvas { border: 1px solid black; }
+        #textBox { 
+            position: absolute; 
+            top: 50%; 
+            left: 50%; 
+            transform: translate(-50%, -50%); 
+            background: rgba(255, 255, 255, 0.9); 
+            padding: 20px; 
+            display: none; 
         }
     </style>
 </head>
 <body>
-    <div id="game-container">
-        <canvas id="gameCanvas" width="800" height="600"></canvas>
-        <div id="instructions">Click a pawn to start the maze challenge!</div>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <div id="textBox">
+        <p id="textPrompt"></p>
+        <button id="option1"></button>
+        <button id="option2"></button>
     </div>
-
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        
-        // Game states
-        const STATE_CHESS = 0;
-        const STATE_MAZE = 1;
-        let currentState = STATE_CHESS;
-        
-        // Chess board setup
-        let board = Array(8).fill().map(() => Array(8).fill(0));
-        let completedPieces = new Set();
-        let currentTheme = 0;
-        const themes = [
-            {boardLight: '#D2B48C', boardDark: '#8B4513', pieces: '#FFD700', completed: '#00FF00'},
-            {boardLight: '#DDA0DD', boardDark: '#4B0082', pieces: '#FF69B4', completed: '#FFFF00'},
-            {boardLight: '#98FB98', boardDark: '#006400', pieces: '#FFA500', completed: '#FF0000'}
+        const textBox = document.getElementById('textBox');
+        const textPrompt = document.getElementById('textPrompt');
+        const option1 = document.getElementById('option1');
+        const option2 = document.getElementById('option2');
+
+        // Player properties
+        let player = { x: 50, y: 500, width: 30, height: 30, speed: 5, dy: 0, jumping: false };
+        const gravity = 0.5;
+        const jumpForce = -15;
+
+        // Game state
+        let level = 1;
+        let score = 0;
+        let time = 0;
+        let gameRunning = true;
+        let textInteraction = false;
+
+        // Level objects (platforms, blocks, keys)
+        let platforms = [];
+        let blocks = [];
+        let key = { x: 0, y: 0, collected: false };
+        let colors = ['#40E0D0', '#FF7F50', '#4682B4', '#32CD32', '#FF4500', '#FFD700', '#9932CC', '#F0F8FF', '#1E90FF', '#FFDAB9'];
+
+        // Define levels
+        const levels = [
+            { platforms: [{ x: 0, y: 550, w: 800, h: 50 }], blocks: [], key: { x: 700, y: 500 }, parTime: 120, riddle: { q: "What flies without wings?", a1: "Time", a2: "Bird", correct: "Time" } },
+            { platforms: [{ x: 0, y: 550, w: 400, h: 50 }, { x: 500, y: 450, w: 300, h: 50 }], blocks: [{ x: 550, y: 400, w: 40, h: 40 }], key: { x: 700, y: 400 }, parTime: 150 },
+            { platforms: [{ x: 0, y: 550, w: 300, h: 50 }, { x: 400, y: 450, w: 200, h: 50 }], blocks: [], key: { x: 550, y: 400 }, parTime: 180, riddle: { q: "I speak without a mouth—what am I?", a1: "Echo", a2: "Wind", correct: "Echo" } },
+            // Add more levels up to 10 with increasing complexity (simplified here for brevity)
+            { platforms: [{ x: 0, y: 550, w: 200, h: 50 }, { x: 300, y: 450, w: 200, h: 50 }], blocks: [{ x: 350, y: 400, w: 40, h: 40 }], key: { x: 450, y: 400 }, parTime: 210 },
+            { platforms: [{ x: 0, y: 550, w: 150, h: 50 }, { x: 200, y: 450, w: 150, h: 50 }], blocks: [], key: { x: 300, y: 400 }, parTime: 240 },
+            { platforms: [{ x: 0, y: 550, w: 100, h: 50 }, { x: 150, y: 450, w: 100, h: 50 }], blocks: [{ x: 200, y: 400, w: 40, h: 40 }], key: { x: 250, y: 400 }, parTime: 270 },
+            { platforms: [{ x: 0, y: 550, w: 80, h: 50 }, { x: 120, y: 450, w: 80, h: 50 }], blocks: [], key: { x: 180, y: 400 }, parTime: 300 },
+            { platforms: [{ x: 0, y: 550, w: 60, h: 50 }, { x: 100, y: 450, w: 60, h: 50 }], blocks: [{ x: 120, y: 400, w: 40, h: 40 }], key: { x: 150, y: 400 }, parTime: 330 },
+            { platforms: [{ x: 0, y: 550, w: 40, h: 50 }, { x: 80, y: 450, w: 40, h: 50 }], blocks: [], key: { x: 100, y: 400 }, parTime: 360 },
+            { platforms: [{ x: 0, y: 550, w: 20, h: 50 }, { x: 50, y: 450, w: 20, h: 50 }], blocks: [{ x: 70, y: 400, w: 40, h: 40 }], key: { x: 90, y: 400 }, parTime: 420, riddle: { q: "I shatter light—what am I?", a1: "Prism", a2: "Mirror", correct: "Prism" } }
         ];
 
-        // Initialize pawns
-        for(let i = 0; i < 8; i++) {
-            board[1][i] = 1;
-            board[6][i] = 1;
+        // Load level
+        function loadLevel(lvl) {
+            platforms = levels[lvl - 1].platforms;
+            blocks = levels[lvl - 1].blocks.map(b => ({ ...b, dx: 0 }));
+            key = { ...levels[lvl - 1].key, collected: false };
+            player.x = 50;
+            player.y = 500;
+            time = 0;
+            gameRunning = true;
         }
 
-        // Maze game variables
-        let ball = {x: 100, y: 400, vx: 0, vy: 0, radius: 15};
-        let hole = {x: 650, y: 400, radius: 25}; // Larger hole
-        let isLaunching = false;
-        let launchAngle = 0;
-        let launchPower = 0;
-        let attempts = 3; // Add retry attempts
+        // Controls
+        let keys = {};
+        window.addEventListener('keydown', (e) => keys[e.key] = true);
+        window.addEventListener('keyup', (e) => keys[e.key] = false);
 
-        function drawChessBoard() {
-            const theme = themes[currentTheme];
-            const squareSize = canvas.width / 8;
-            
-            // Draw checkered pattern
-            for(let row = 0; row < 8; row++) {
-                for(let col = 0; col < 8; col++) {
-                    ctx.fillStyle = (row + col) % 2 === 0 ? theme.boardLight : theme.boardDark;
-                    ctx.fillRect(col * squareSize, row * squareSize, squareSize, squareSize);
-                    
-                    // Add subtle gradient
-                    const gradient = ctx.createRadialGradient(
-                        col * squareSize + squareSize/2,
-                        row * squareSize + squareSize/2,
-                        0,
-                        col * squareSize + squareSize/2,
-                        row * squareSize + squareSize/2,
-                        squareSize/2
-                    );
-                    gradient.addColorStop(0, 'rgba(255,255,255,0.1)');
-                    gradient.addColorStop(1, 'rgba(0,0,0,0.1)');
-                    ctx.fillStyle = gradient;
-                    ctx.fillRect(col * squareSize, row * squareSize, squareSize, squareSize);
-                }
+        // Collision detection
+        function collides(a, b) {
+            return a.x < b.x + b.w && a.x + a.width > b.x && a.y < b.y + b.h && a.y + a.height > b.y;
+        }
+
+        // Game loop
+        function update() {
+            if (!gameRunning) return;
+
+            // Player movement
+            if (keys['ArrowLeft'] || keys['a']) player.x -= player.speed;
+            if (keys['ArrowRight'] || keys['d']) player.x += player.speed;
+            if ((keys['ArrowUp'] || keys['w']) && !player.jumping) {
+                player.dy = jumpForce;
+                player.jumping = true;
             }
 
-            // Draw pieces
-            for(let row = 0; row < 8; row++) {
-                for(let col = 0; col < 8; col++) {
-                    if(board[row][col] === 1) {
-                        drawPawn(col * squareSize + squareSize/2, 
-                                row * squareSize + squareSize/2, 
-                                theme.pieces);
-                    } else if(board[row][col] === 2) {
-                        drawPawn(col * squareSize + squareSize/2, 
-                                row * squareSize + squareSize/2, 
-                                theme.completed);
-                    }
+            // Gravity and collision
+            player.dy += gravity;
+            player.y += player.dy;
+            for (let p of platforms) {
+                if (collides(player, p) && player.dy > 0 && player.y + player.height - player.dy <= p.y) {
+                    player.y = p.y - player.height;
+                    player.dy = 0;
+                    player.jumping = false;
                 }
             }
+            if (player.y > canvas.height) player.y = 500;
+
+            // Block interaction
+            for (let b of blocks) {
+                if (collides(player, b)) {
+                    if (player.x < b.x) player.x = b.x - player.width;
+                    else player.x = b.x + b.w;
+                    b.dx = player.x > b.x ? 2 : -2;
+                }
+                b.x += b.dx;
+                b.dx *= 0.9; // Friction
+                for (let p of platforms) if (collides(b, p)) b.x -= b.dx;
+            }
+
+            // Key collection
+            if (!key.collected && collides(player, { x: key.x, y: key.y, w: 20, h: 20 })) {
+                key.collected = true;
+                if (levels[level - 1].riddle) showRiddle(levels[level - 1].riddle);
+                else endLevel();
+            }
+
+            // Time
+            time += 1 / 60; // Assuming 60 FPS
+            draw();
+            requestAnimationFrame(update);
         }
 
-        function drawPawn(x, y, color) {
-            ctx.fillStyle = color;
-            ctx.beginPath();
-            ctx.arc(x, y, 20, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = 'rgba(0,0,0,0.2)';
-            ctx.beginPath();
-            ctx.arc(x + 5, y - 5, 15, 0, Math.PI * 2);
-            ctx.fill();
-        }
-
-        function drawMazeGame() {
-            ctx.fillStyle = '#87CEEB';
+        // Draw game
+        function draw() {
+            ctx.fillStyle = colors[level - 1];
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            // Draw chasm (smaller)
-            ctx.fillStyle = '#666';
-            ctx.fillRect(300, 0, 200, canvas.height);
-            
-            // Draw ball with speed trail
-            const speed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
-            const gradient = ctx.createLinearGradient(
-                ball.x - ball.vx, ball.y - ball.vy, ball.x, ball.y
-            );
-            gradient.addColorStop(0, 'rgba(255,0,0,0)');
-            gradient.addColorStop(1, '#FF0000');
-            ctx.fillStyle = gradient;
-            ctx.fillRect(ball.x - 20, ball.y - 20, 40, 40);
-            
-            ctx.fillStyle = '#FF0000';
-            ctx.beginPath();
-            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
-            ctx.fill();
-            
-            // Draw hole
+
             ctx.fillStyle = '#000';
-            ctx.beginPath();
-            ctx.arc(hole.x, hole.y, hole.radius, 0, Math.PI * 2);
-            ctx.fill();
-            
-            // Launch guide
-            if(isLaunching) {
-                ctx.strokeStyle = '#00FF00';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(ball.x, ball.y);
-                ctx.lineTo(ball.x + Math.cos(launchAngle) * launchPower * 2,
-                         ball.y + Math.sin(launchAngle) * launchPower * 2);
-                ctx.stroke();
-                
-                // Attempts remaining
-                ctx.fillStyle = '#FFF';
-                ctx.font = '20px Arial';
-                ctx.fillText(`Attempts: ${attempts}`, 10, 30);
-            }
+            platforms.forEach(p => ctx.fillRect(p.x, p.y, p.w, p.h));
+            blocks.forEach(b => ctx.fillRect(b.x, b.y, b.w, b.h));
+
+            ctx.fillStyle = '#FFD700';
+            if (!key.collected) ctx.fillRect(key.x, key.y, 20, 20);
+
+            ctx.fillStyle = '#FF4500';
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+
+            ctx.fillStyle = '#FFF';
+            ctx.font = '20px Arial';
+            ctx.fillText(`Level: ${level} | Time: ${time.toFixed(1)}s | Score: ${score}`, 10, 30);
         }
 
-        function updateMazeGame() {
-            if(!isLaunching) {
-                ball.vy += 0.3; // Lighter gravity
-                ball.x += ball.vx;
-                ball.y += ball.vy;
-                ball.vx *= 0.99; // Friction
-                ball.vy *= 0.99;
-                
-                // Bounce off walls
-                if(ball.x < ball.radius || ball.x > canvas.width - ball.radius) {
-                    ball.vx = -ball.vx * 0.8;
-                }
-                if(ball.y > canvas.height - ball.radius) {
-                    ball.vy = -ball.vy * 0.8;
-                    ball.y = canvas.height - ball.radius;
-                }
-                
-                // Check hole
-                const dx = ball.x - hole.x;
-                const dy = ball.y - hole.y;
-                if(Math.sqrt(dx*dx + dy*dy) < ball.radius + hole.radius) {
-                    completePiece();
-                }
-                
-                // Check failure
-                if(ball.y > canvas.height + 50 || (ball.vx === 0 && ball.vy === 0 && attempts > 0)) {
-                    attempts--;
-                    if(attempts > 0) {
-                        resetBall();
-                    } else {
-                        currentState = STATE_CHESS;
-                        resetBall();
-                        attempts = 3;
-                    }
-                }
-            }
+        // Text interaction
+        function showRiddle(riddle) {
+            gameRunning = false;
+            textInteraction = true;
+            textBox.style.display = 'block';
+            textPrompt.textContent = riddle.q;
+            option1.textContent = riddle.a1;
+            option2.textContent = riddle.a2;
+            option1.onclick = () => checkAnswer(riddle, riddle.a1);
+            option2.onclick = () => checkAnswer(riddle, riddle.a2);
         }
 
-        function resetBall() {
-            ball.x = 100;
-            ball.y = 400;
-            ball.vx = 0;
-            ball.vy = 0;
-            isLaunching = true;
+        function checkAnswer(riddle, answer) {
+            textBox.style.display = 'none';
+            gameRunning = true;
+            textInteraction = false;
+            if (answer === riddle.correct) endLevel();
         }
 
-        function completePiece() {
-            board[currentPiece.row][currentPiece.col] = 2;
-            completedPieces.add(`${currentPiece.row},${currentPiece.col}`);
-            currentState = STATE_CHESS;
-            resetBall();
-            attempts = 3;
-            checkWinCondition();
+        // End level
+        function endLevel() {
+            gameRunning = false;
+            let levelScore = Math.max(0, 1000 - Math.floor((time - levels[level - 1].parTime) * 10));
+            score += levelScore;
+            alert(`Level ${level} Complete! Score: ${levelScore} | Total Score: ${score}`);
+            level++;
+            if (level <= 10) loadLevel(level);
+            else alert(`Game Over! Final Score: ${score}`);
         }
 
-        function checkWinCondition() {
-            if(completedPieces.size === 16) {
-                alert('Congratulations! You completed the board!');
-                currentTheme = (currentTheme + 1) % themes.length;
-                resetGame();
-            }
-        }
-
-        function resetGame() {
-            board = Array(8).fill().map(() => Array(8).fill(0));
-            completedPieces.clear();
-            for(let i = 0; i < 8; i++) {
-                board[1][i] = 1;
-                board[6][i] = 1;
-            }
-        }
-
-        let currentPiece = null;
-        canvas.addEventListener('click', (e) => {
-            const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-
-            if(currentState === STATE_CHESS) {
-                const squareSize = canvas.width / 8;
-                const row = Math.floor(y / squareSize);
-                const col = Math.floor(x / squareSize);
-                
-                if(board[row][col] === 1) {
-                    currentPiece = {row, col};
-                    currentState = STATE_MAZE;
-                    resetBall();
-                }
-            }
-        });
-
-        canvas.addEventListener('mousemove', (e) => {
-            if(isLaunching) {
-                const rect = canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-                launchAngle = Math.atan2(y - ball.y, x - ball.x);
-                launchPower = Math.min(50, Math.sqrt((x - ball.x)**2 + (y - ball.y)**2) / 5);
-            }
-        });
-
-        canvas.addEventListener('mouseup', () => {
-            if(isLaunching) {
-                ball.vx = Math.cos(launchAngle) * launchPower * 0.3;
-                ball.vy = Math.sin(launchAngle) * launchPower * 0.3;
-                isLaunching = false;
-            }
-        });
-
-        function gameLoop() {
-            if(currentState === STATE_CHESS) {
-                drawChessBoard();
-            } else {
-                drawMazeGame();
-                updateMazeGame();
-            }
-            requestAnimationFrame(gameLoop);
-        }
-
-        gameLoop();
+        // Start game
+        loadLevel(1);
+        update();
     </script>
 </body>
 </html>
