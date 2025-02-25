@@ -1,325 +1,280 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Device Mystery</title>
+    <title>Chess Maze Adventure</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        canvas {
+            border: 2px solid #333;
+            display: block;
+            margin: 20px auto;
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
         }
-
-        body {
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            background-color: black;
+        #game-container {
+            text-align: center;
             font-family: Arial, sans-serif;
-            overflow: hidden;
-        }
-
-        .screen {
-            display: none;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            width: 90%;
-            max-width: 600px;
-            text-align: center;
-            color: white;
-        }
-
-        .active {
-            display: flex;
-        }
-
-        #device-text {
-            color: gray;
-            font-family: serif;
-            font-size: clamp(14px, 4vw, 18px);
-            opacity: 1;
-            transition: opacity 1s ease;
-        }
-
-        .prompt {
-            color: #00ff00;
-            font-size: clamp(16px, 5vw, 24px);
-            margin-bottom: 15px;
-        }
-
-        input {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid gray;
-            color: white;
-            padding: 8px;
-            font-size: 16px;
-            width: 200px;
-            max-width: 80%;
-            text-align: center;
-        }
-
-        #name-display {
-            font-size: clamp(36px, 10vw, 72px);
-            text-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
-        }
-
-        .spark {
-            position: absolute;
-            width: 5px;
-            height: 5px;
-            background: white;
-            border-radius: 50%;
-            animation: sparkle 1.5s ease-out forwards;
-            box-shadow: 0 0 5px white;
-        }
-
-        .mist {
-            position: absolute;
-            width: 3px;
-            height: 3px;
-            background: rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            animation: mist 2s linear forwards;
-        }
-
-        @keyframes sparkle {
-            0% { transform: scale(0); opacity: 1; }
-            100% { transform: scale(2); opacity: 0; }
-        }
-
-        @keyframes mist {
-            0% { transform: translateY(0); opacity: 0.5; }
-            100% { transform: translateY(-50px); opacity: 0; }
-        }
-
-        #response-text {
-            font-size: clamp(14px, 4vw, 18px);
-            margin-top: 20px;
-        }
-
-        .buttons {
-            margin-top: 15px;
-        }
-
-        button {
-            padding: 8px 16px;
-            margin: 5px;
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid gray;
-            color: white;
-            cursor: pointer;
-        }
-
-        #location-time {
-            font-size: clamp(14px, 4vw, 18px);
-        }
-
-        .dot {
-            position: absolute;
-            background: black;
-            border-radius: 50%;
+            background: #f0f0f0;
+            padding: 20px;
         }
     </style>
 </head>
 <body>
-    <div id="device-screen" class="screen active">
-        <div id="device-text"></div>
-    </div>
-    <div id="name-screen" class="screen">
-        <div class="prompt">NAME YOUR CHARACTER</div>
-        <input type="text" id="name-input" maxlength="20">
-    </div>
-    <div id="name-display" class="screen"></div>
-    <div id="age-screen" class="screen">
-        <div class="prompt">HOW OLD ARE YOU?</div>
-        <input type="number" id="age-input" maxlength="2">
-    </div>
-    <div id="response-screen" class="screen">
-        <div id="response-text"></div>
-    </div>
-    <div id="location-screen" class="screen">
-        <div id="location-time"></div>
+    <div id="game-container">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div id="instructions">Click a pawn to start the maze challenge!</div>
     </div>
 
     <script>
-        const proverbs = [
-            "Beware what lurks in shadows ahead",
-            "Take heed of coming darkness",
-            "Caution guides the path forward",
-            "Watch for what tomorrow hides",
-            "Fear the unseen that approaches",
-            "Beware the storm yet to break",
-            "Mind the dangers drawing near",
-            "Heed the whispers of fate",
-            "Look out for hidden perils",
-            "Beware what fate conceals",
-            "Watch for coming trials",
-            "Take care with steps ahead",
-            "Fear what waits in silence",
-            "Beware the unknown future",
-            "Caution rules the wise",
-            "Mind what lies in wait",
-            "Heed the winds of change",
-            "Watch for unseen threats",
-            "Beware time's secret plans",
-            "Look to the shadows coming"
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Game states
+        const STATE_CHESS = 0;
+        const STATE_MAZE = 1;
+        let currentState = STATE_CHESS;
+        
+        // Chess board setup
+        let board = Array(8).fill().map(() => Array(8).fill(0));
+        let completedPieces = new Set();
+        let currentTheme = 0;
+        const themes = [
+            {boardLight: '#D2B48C', boardDark: '#8B4513', pieces: '#FFD700', completed: '#00FF00'},
+            {boardLight: '#DDA0DD', boardDark: '#4B0082', pieces: '#FF69B4', completed: '#FFFF00'},
+            {boardLight: '#98FB98', boardDark: '#006400', pieces: '#FFA500', completed: '#FF0000'}
         ];
 
-        // Device detection
-        const ua = navigator.userAgent.toLowerCase();
-        const device = /iphone|ipad|ipod/.test(ua) ? 'iPhone' :
-                      /android/.test(ua) ? 'Android' : 'Computer';
-        
-        // Initialize first screen
-        const deviceText = document.getElementById('device-text');
-        deviceText.innerHTML = `${device}<br>${proverbs[Math.floor(Math.random() * proverbs.length)]}`;
-
-        // Screen management
-        function showScreen(screenId) {
-            document.querySelectorAll('.screen').forEach(screen => {
-                screen.classList.remove('active');
-                screen.style.opacity = '1'; // Reset opacity
-            });
-            const nextScreen = document.getElementById(screenId);
-            nextScreen.classList.add('active');
-            // Ensure input is focused for mobile
-            const input = nextScreen.querySelector('input');
-            if (input) setTimeout(() => input.focus(), 100);
+        // Initialize pawns
+        for(let i = 0; i < 8; i++) {
+            board[1][i] = 1;
+            board[6][i] = 1;
         }
 
-        // Start sequence
-        function startSequence() {
-            setTimeout(() => {
-                deviceText.style.opacity = '0';
-                setTimeout(() => {
-                    showScreen('name-screen');
-                }, 1000);
-            }, 3000);
-        }
+        // Maze game variables
+        let ball = {x: 100, y: 400, vx: 0, vy: 0, radius: 15};
+        let hole = {x: 650, y: 400, radius: 25}; // Larger hole
+        let isLaunching = false;
+        let launchAngle = 0;
+        let launchPower = 0;
+        let attempts = 3; // Add retry attempts
 
-        // Name handling
-        const nameInput = document.getElementById('name-input');
-        nameInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                const name = e.target.value.trim();
-                if (name && !name.includes(' ')) {
-                    showScreen('name-display');
-                    const nameDisplay = document.getElementById('name-display');
-                    nameDisplay.textContent = name;
+        function drawChessBoard() {
+            const theme = themes[currentTheme];
+            const squareSize = canvas.width / 8;
+            
+            // Draw checkered pattern
+            for(let row = 0; row < 8; row++) {
+                for(let col = 0; col < 8; col++) {
+                    ctx.fillStyle = (row + col) % 2 === 0 ? theme.boardLight : theme.boardDark;
+                    ctx.fillRect(col * squareSize, row * squareSize, squareSize, squareSize);
                     
-                    // Background color
-                    const firstLetter = name[0].toLowerCase();
-                    document.body.style.backgroundColor = `hsl(${firstLetter.charCodeAt(0) * 3}, 50%, 20%)`;
+                    // Add subtle gradient
+                    const gradient = ctx.createRadialGradient(
+                        col * squareSize + squareSize/2,
+                        row * squareSize + squareSize/2,
+                        0,
+                        col * squareSize + squareSize/2,
+                        row * squareSize + squareSize/2,
+                        squareSize/2
+                    );
+                    gradient.addColorStop(0, 'rgba(255,255,255,0.1)');
+                    gradient.addColorStop(1, 'rgba(0,0,0,0.1)');
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(col * squareSize, row * squareSize, squareSize, squareSize);
+                }
+            }
 
-                    // Particle effects
-                    const bounds = nameDisplay.getBoundingClientRect();
-                    for (let i = 0; i < 50; i++) {
-                        const spark = document.createElement('div');
-                        spark.className = 'spark';
-                        const mist = document.createElement('div');
-                        mist.className = 'mist';
-                        const x = bounds.left + bounds.width/2 + (Math.random() - 0.5) * bounds.width;
-                        const y = bounds.top + bounds.height/2 + (Math.random() - 0.5) * bounds.height;
-                        spark.style.left = `${x}px`;
-                        spark.style.top = `${y}px`;
-                        mist.style.left = `${x + (Math.random() - 0.5) * 50}px`;
-                        mist.style.top = `${y + 50}px`;
-                        document.body.appendChild(spark);
-                        document.body.appendChild(mist);
-                        setTimeout(() => { spark.remove(); mist.remove(); }, 2000);
+            // Draw pieces
+            for(let row = 0; row < 8; row++) {
+                for(let col = 0; col < 8; col++) {
+                    if(board[row][col] === 1) {
+                        drawPawn(col * squareSize + squareSize/2, 
+                                row * squareSize + squareSize/2, 
+                                theme.pieces);
+                    } else if(board[row][col] === 2) {
+                        drawPawn(col * squareSize + squareSize/2, 
+                                row * squareSize + squareSize/2, 
+                                theme.completed);
                     }
+                }
+            }
+        }
 
-                    setTimeout(() => {
-                        nameDisplay.style.opacity = '0';
-                        setTimeout(() => {
-                            showScreen('age-screen');
-                        }, 1000);
-                    }, 3000);
+        function drawPawn(x, y, color) {
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(x, y, 20, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = 'rgba(0,0,0,0.2)';
+            ctx.beginPath();
+            ctx.arc(x + 5, y - 5, 15, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawMazeGame() {
+            ctx.fillStyle = '#87CEEB';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw chasm (smaller)
+            ctx.fillStyle = '#666';
+            ctx.fillRect(300, 0, 200, canvas.height);
+            
+            // Draw ball with speed trail
+            const speed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+            const gradient = ctx.createLinearGradient(
+                ball.x - ball.vx, ball.y - ball.vy, ball.x, ball.y
+            );
+            gradient.addColorStop(0, 'rgba(255,0,0,0)');
+            gradient.addColorStop(1, '#FF0000');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(ball.x - 20, ball.y - 20, 40, 40);
+            
+            ctx.fillStyle = '#FF0000';
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Draw hole
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(hole.x, hole.y, hole.radius, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Launch guide
+            if(isLaunching) {
+                ctx.strokeStyle = '#00FF00';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(ball.x, ball.y);
+                ctx.lineTo(ball.x + Math.cos(launchAngle) * launchPower * 2,
+                         ball.y + Math.sin(launchAngle) * launchPower * 2);
+                ctx.stroke();
+                
+                // Attempts remaining
+                ctx.fillStyle = '#FFF';
+                ctx.font = '20px Arial';
+                ctx.fillText(`Attempts: ${attempts}`, 10, 30);
+            }
+        }
+
+        function updateMazeGame() {
+            if(!isLaunching) {
+                ball.vy += 0.3; // Lighter gravity
+                ball.x += ball.vx;
+                ball.y += ball.vy;
+                ball.vx *= 0.99; // Friction
+                ball.vy *= 0.99;
+                
+                // Bounce off walls
+                if(ball.x < ball.radius || ball.x > canvas.width - ball.radius) {
+                    ball.vx = -ball.vx * 0.8;
+                }
+                if(ball.y > canvas.height - ball.radius) {
+                    ball.vy = -ball.vy * 0.8;
+                    ball.y = canvas.height - ball.radius;
+                }
+                
+                // Check hole
+                const dx = ball.x - hole.x;
+                const dy = ball.y - hole.y;
+                if(Math.sqrt(dx*dx + dy*dy) < ball.radius + hole.radius) {
+                    completePiece();
+                }
+                
+                // Check failure
+                if(ball.y > canvas.height + 50 || (ball.vx === 0 && ball.vy === 0 && attempts > 0)) {
+                    attempts--;
+                    if(attempts > 0) {
+                        resetBall();
+                    } else {
+                        currentState = STATE_CHESS;
+                        resetBall();
+                        attempts = 3;
+                    }
+                }
+            }
+        }
+
+        function resetBall() {
+            ball.x = 100;
+            ball.y = 400;
+            ball.vx = 0;
+            ball.vy = 0;
+            isLaunching = true;
+        }
+
+        function completePiece() {
+            board[currentPiece.row][currentPiece.col] = 2;
+            completedPieces.add(`${currentPiece.row},${currentPiece.col}`);
+            currentState = STATE_CHESS;
+            resetBall();
+            attempts = 3;
+            checkWinCondition();
+        }
+
+        function checkWinCondition() {
+            if(completedPieces.size === 16) {
+                alert('Congratulations! You completed the board!');
+                currentTheme = (currentTheme + 1) % themes.length;
+                resetGame();
+            }
+        }
+
+        function resetGame() {
+            board = Array(8).fill().map(() => Array(8).fill(0));
+            completedPieces.clear();
+            for(let i = 0; i < 8; i++) {
+                board[1][i] = 1;
+                board[6][i] = 1;
+            }
+        }
+
+        let currentPiece = null;
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            if(currentState === STATE_CHESS) {
+                const squareSize = canvas.width / 8;
+                const row = Math.floor(y / squareSize);
+                const col = Math.floor(x / squareSize);
+                
+                if(board[row][col] === 1) {
+                    currentPiece = {row, col};
+                    currentState = STATE_MAZE;
+                    resetBall();
                 }
             }
         });
 
-        // Age handling
-        const ageInput = document.getElementById('age-input');
-        ageInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                const age = parseInt(e.target.value);
-                if (!isNaN(age)) {
-                    showScreen('response-screen');
-                    const responseText = document.getElementById('response-text');
-                    
-                    if (age < 13) {
-                        responseText.textContent = 'Better luck next time.';
-                    } else if (age <= 25) {
-                        responseText.textContent = 'You need to buy lots of junk on Amazon.';
-                    } else if (age <= 39) {
-                        responseText.innerHTML = 'Are you ready to dedicate the next 12 years reading Wikipedia?<br>' +
-                            '<a href="https://wikipedia.org" target="_blank" style="color: white">Wikipedia</a><br>' +
-                            '<div class="buttons">' +
-                            '<button onclick="window.open(\'https://amazon.com\', \'_blank\')">No</button>' +
-                            '<button onclick="showLocation()">Yes</button>' +
-                            '</div>';
-                    } else if (age <= 99) {
-                        document.body.style.backgroundColor = 'white';
-                        createDots();
-                    }
-                }
+        canvas.addEventListener('mousemove', (e) => {
+            if(isLaunching) {
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                launchAngle = Math.atan2(y - ball.y, x - ball.x);
+                launchPower = Math.min(50, Math.sqrt((x - ball.x)**2 + (y - ball.y)**2) / 5);
             }
         });
 
-        function showLocation() {
-            showScreen('location-screen');
-            const locationTime = document.getElementById('location-time');
-            const currentTime = new Date().toLocaleTimeString();
-            let countdown = 999;
+        canvas.addEventListener('mouseup', () => {
+            if(isLaunching) {
+                ball.vx = Math.cos(launchAngle) * launchPower * 0.3;
+                ball.vy = Math.sin(launchAngle) * launchPower * 0.3;
+                isLaunching = false;
+            }
+        });
 
-            fetch('https://ipapi.co/json/')
-                .then(response => response.json())
-                .then(data => {
-                    const location = `${data.city || 'Unknown'}, ${data.region || ''}, ${data.country_name || ''}`;
-                    locationTime.innerHTML = `Time: ${currentTime}<br>Location: ${location}<br>Countdown: <span id="timer">${countdown}</span> seconds`;
-                    startTimer(countdown);
-                })
-                .catch(() => {
-                    locationTime.innerHTML = `Time: ${currentTime}<br>Location: Unknown<br>Countdown: <span id="timer">${countdown}</span> seconds`;
-                    startTimer(countdown);
-                });
+        function gameLoop() {
+            if(currentState === STATE_CHESS) {
+                drawChessBoard();
+            } else {
+                drawMazeGame();
+                updateMazeGame();
+            }
+            requestAnimationFrame(gameLoop);
         }
 
-        function startTimer(countdown) {
-            const timerSpan = document.getElementById('timer');
-            const interval = setInterval(() => {
-                countdown--;
-                timerSpan.textContent = countdown;
-                if (countdown <= 0) clearInterval(interval);
-            }, 1000);
-        }
-
-        function createDots() {
-            let count = 0;
-            const interval = setInterval(() => {
-                if (count >= 200) {
-                    clearInterval(interval);
-                    return;
-                }
-                const dot = document.createElement('div');
-                dot.className = 'dot';
-                const size = Math.random() * 20 + 5;
-                dot.style.width = `${size}px`;
-                dot.style.height = `${size}px`;
-                dot.style.left = `${Math.random() * window.innerWidth}px`;
-                dot.style.top = `${Math.random() * window.innerHeight}px`;
-                document.body.appendChild(dot);
-                count++;
-            }, 50);
-        }
-
-        // Start the sequence when page loads
-        window.onload = startSequence;
+        gameLoop();
     </script>
 </body>
 </html>
